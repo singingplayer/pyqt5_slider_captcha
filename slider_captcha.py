@@ -35,7 +35,7 @@ class SliderCaptchaDialog(QDialog):
             pixmap = QPixmap()
             pixmap.loadFromData(image_data)
             self.label.setPixmap(pixmap)
-            self.label.setStyleSheet("""" """)
+            self.label.setStyleSheet(""" """)
 
             self.slider = QSlider(Qt.Horizontal)
             self.slider.setStyleSheet(""" """)
