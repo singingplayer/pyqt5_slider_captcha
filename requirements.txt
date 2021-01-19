@@ -1,0 +1,5 @@
+packaging==20.8
+pyparsing==2.4.7
+PyQt5==5.7.1
+sip==4.19.8
+toml==0.10.2
