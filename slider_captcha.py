@@ -12,105 +12,33 @@ from PyQt5.QtGui import *
 # 设置日志级别
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s')
 
-
-class MyLabel(QLabel):
-    def __init__(self, parent=None):
+class SliderCaptchaDialog(QDialog):
+    def __init__(self):
         try:
-            super(MyLabel, self).__init__(parent)
-            spacerItem1 = QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
-            spacerItem2 = QSpacerItem(20, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
-
-            pushButton = QPushButton()
-            # pushButton.setFlat(True)
-            pushButton.clicked.connect(self.refresh_image)
-
-            hbox = QHBoxLayout()
-            hbox.addItem(spacerItem1)
-            hbox.addStretch(1)
-            hbox.addWidget(pushButton)
-
-            vbox = QVBoxLayout()
-            vbox.addLayout(hbox)
-            vbox.addItem(spacerItem2)
-            vbox.addStretch(1)
-            self.setLayout(vbox)
-
-            self.thread = LoadImageThread()  # 创建线程
-            self.thread.start()
-            self.thread.trigger.connect(self.load_image)
-
+            super(SliderCaptchaDialog, self).__init__()
             self.setStyleSheet("""
+QDialog {background: #ffffff;
+}
+
 QPushButton{
     background-image: url(./icons/refresh.png);
-    width: 30px;
-    height: 30px;
+    background-repeat: no-repeat;
     border: none;
 }
 QPushButton:hover{
     background-image: url(./icons/refresh-hover.png);
 }
-            """)
 
-
-        except:
-            traceback.print_exc()
-
-    def refresh_image(self):
-        try:
-            self.clear()
-            self.thread.start()
-        except:
-            traceback.print_exc()
-
-    def load_image(self, content):
-        try:
-            pixmap = QPixmap()
-            pixmap.loadFromData(content)
-            pixmap = pixmap.scaled(self.size())
-            self.setPixmap(pixmap)
-            self.setScaledContents(True)
-        except:
-            traceback.print_exc()
-
-class SliderCaptchaDialog(QDialog):
-    def __init__(self):
-        try:
-            super(SliderCaptchaDialog, self).__init__()
-            self.resize(380, 220)
-            self.setWindowFlags(Qt.WindowCloseButtonHint)
-            self.setWindowTitle("滑动验证码")
-
-            self.label = MyLabel()
-
-            self.pushButton = QPushButton("123")
-
-            self.slider = QSlider(Qt.Horizontal)
-            self.slider.setFixedHeight(40)
-
-            self.vbox = QVBoxLayout(self)
-            self.vbox.addWidget(self.label)
-            self.vbox.addWidget(self.slider)
-            self.vbox.setStretch(0, 1)
-            self.vbox.setStretch(1, 0)
-
-            self.setStyleSheet("""
-QDialog {
-    background: #ffffff;
-}
-
-QLabel {
-}
 
 QSlider::groove {
     border: 1px solid #999999;
-    height: 30px;
 }
 
 QSlider::handle:horizontal {
     image: url(./icons/arrow.png);
     border:1px solid #999999;
     background: #ffffff;
-    width:30px;
+    width: 45px;
     margin: -1px ;
 }
 
@@ -128,20 +56,80 @@ QSlider::sub-page:horizontal {
     background: #D1E9FE;
 }
       """)
+            self.setFixedSize(330, 230)
+            self.setWindowFlags(Qt.WindowCloseButtonHint)
+            self.setWindowTitle("滑动验证码")
 
+            self.label = QLabel(self)
+            self.label.setGeometry(10, 10, 310, 155)
+
+            self.pushButton = QPushButton(self)
+            self.pushButton.setGeometry(280, 20, 310, 30)
+            self.pushButton.clicked.connect(self.refresh_image)
+
+            self.slider = QSlider(Qt.Horizontal, self)
+            self.slider.setGeometry(10, 180, 310, 40)
+            self.slider.sliderMoved.connect(self.move_slider)
+
+            self.thread = LoadImageThread()
+            self.thread.start()
+            self.thread.trigger.connect(self.load_image)
+
+            self.label_puzzle = QLabel(self)
+            self.label_puzzle.setGeometry(10, 10, 45, 45)
+            self.label_puzzle.raise_()
         except:
             traceback.print_exc()
-    
-    def paintEvent(self, event):
+
+    def refresh_image(self):
         try:
-            pass
+            self.slider.setValue(0)
+            self.label.clear()
+            self.label_puzzle.clear()
+            self.thread.start()
         except:
             traceback.print_exc()
+
+    def load_image(self, content):
+        try:
+            # 滑块复位
+            self.slider.setValue(0)
+
+            width = self.label.width()
+            height = self.label.height()
+
+            block_width = 42
+            block_radius = 10
+
+            min_x = block_width + (block_radius * 2) + 15
+            max_x = width - block_width - ( block_radius * 2) - 15
+            random_x = random.randint(min_x, max_x)
+
+            min_y = block_radius * 2 + 15
+            max_y = height - block_width
+            random_y = random.randint(min_y, max_y)
+
+            # 背景图
+            pixmap = QPixmap()
+            pixmap.loadFromData(content)
+            self.label.setPixmap(pixmap)
+
+            # 拼图
+            pixmap_puzzle = pixmap.copy(QRect(10, 20, 45, 45))
+            self.label_puzzle.setPixmap(pixmap_puzzle)
+            self.label_puzzle.move(10, random_y)
+        except:
+            traceback.print_exc()
+
+    def move_slider(self, value):
+        x = int(value / self.slider.maximum() * (self.label.width() - 45)) + 10
+        y = self.label_puzzle.y()
+        self.label_puzzle.move(x, y)
 
 
 class LoadImageThread(QThread):
 
-    trigger =pyqtSignal(bytes)
+    trigger = pyqtSignal(bytes)
 
     def __init__(self):
         super(LoadImageThread, self).__init__()
@@ -157,6 +145,7 @@ class LoadImageThread(QThread):
         except:
             image_data = None
         self.trigger.emit(image_data)
+
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
