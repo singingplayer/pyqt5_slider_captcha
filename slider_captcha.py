@@ -16,6 +16,9 @@ class SliderCaptchaDialog(QDialog):
     def __init__(self):
         try:
             super(SliderCaptchaDialog, self).__init__()
+            # 是否验证通过
+            self.pass_verify = False
+            # 样式
             self.setStyleSheet("""
 QDialog {background: #ffffff;
 }
@@ -60,72 +63,121 @@ QSlider::sub-page:horizontal {
             self.setWindowFlags(Qt.WindowCloseButtonHint)
             self.setWindowTitle("滑动验证码")
 
-            self.label = QLabel(self)
-            self.label.setGeometry(10, 10, 310, 155)
+            # 左上角
+            self.left_x = 10
+            self.left_y = 10
 
+            # 背景图
+            self.width = 310
+            self.height = 155
+            self.label_background = QLabel(self)
+            self.label_background.setGeometry(self.left_x, self.left_y, self.width, self.height)
+
+            # 前景图
+            self.side = 45
+            self.radius = 5
+            self.label_foreground = QLabel(self)
+            self.label_foreground.setGeometry(self.left_x, self.left_y, self.side, self.side)
+            self.label_foreground.raise_()
+
+            # 拼图位置取值范围
+            self.min_x = self.side + self.radius * 2
+            self.max_x = self.width - self.side - (self.radius * 2)
+
+            self.min_y = self.side + self.radius * 2 
+            self.max_y = self.height - self.side - (self.radius * 2)
+
+            # 刷新按钮
             self.pushButton = QPushButton(self)
             self.pushButton.setGeometry(280, 20, 310, 30)
             self.pushButton.clicked.connect(self.refresh_image)
 
+            # 滑块
             self.slider = QSlider(Qt.Horizontal, self)
+            self.slider.setEnabled(False)
             self.slider.setGeometry(10, 180, 310, 40)
             self.slider.sliderMoved.connect(self.move_slider)
+            self.slider.sliderReleased.connect(self.release_slider)
 
+            # 图片加载线程
             self.thread = LoadImageThread()
-            self.thread.start()
             self.thread.trigger.connect(self.load_image)
-
-            self.label_puzzle = QLabel(self)
-            self.label_puzzle.setGeometry(10, 10, 45, 45)
-            self.label_puzzle.raise_()
+            self.thread.start()
         except:
             traceback.print_exc()
 
     def refresh_image(self):
+        """刷新图片"""
         try:
+            # 滑块重置
             self.slider.setValue(0)
-            self.label.clear()
-            self.label_puzzle.clear()
+            self.slider.setEnabled(False)
+            self.slider.setStyleSheet("QSlider::handle:horizontal {image: url(./icons/arrow.png); background: #ffffff;} QSlider::handle:hover {image: url(./icons/arrow-hover.png);background: #1991FA;}")
+
+            # 图片重置
+            self.label_background.clear()
+            self.label_foreground.clear()
+
+            # 图片加载线程开启
             self.thread.start()
         except:
             traceback.print_exc()
 
     def load_image(self, content):
+        """加载图片"""
         try:
-            # 滑块复位
-            self.slider.setValue(0)
-
-            width = self.label.width()
-            height = self.label.height()
-
-            block_width = 42
-            block_radius = 10
-
-            min_x = block_width + (block_radius * 2) + 15
-            max_x = width - block_width - ( block_radius * 2) - 15
-            random_x = random.randint(min_x, max_x)
-
-            min_y = block_radius * 2 + 15
-            max_y = height - block_width
-            random_y = random.randint(min_y, max_y)
-
+            self.dst_x = random.randint(self.min_x, self.max_x)
+            self.dst_y = random.randint(self.min_y, self.max_y)
+            logging.debug(f"dst_x:{self.dst_x}, dst_y:{self.dst_y}")
             # 背景图
-            pixmap = QPixmap()
-            pixmap.loadFromData(content)
-            self.label.setPixmap(pixmap)
+            pixmap_background = QPixmap()
+            pixmap_background.loadFromData(content)
+            pixmap_background = pixmap_background.scaled(self.width, self.height)
 
-            # 拼图
-            pixmap_puzzle = pixmap.copy(QRect(10, 20, 45, 45))
-            self.label_puzzle.setPixmap(pixmap_puzzle)
-            self.label_puzzle.move(10, random_y)
+            pixmap_foreground = pixmap_background.copy(QRect(self.dst_x, self.dst_y, 45, 45))
+
+            painter = QPainter(pixmap_background)
+            painter.setPen(QPen(Qt.white, 2, Qt.SolidLine))
+            painter.setBrush(QBrush(Qt.white, Qt.SolidPattern))
+            painter.drawRect(QRect(self.dst_x, self.dst_y, self.side, self.side))
+            painter.end()
+
+            self.label_background.setPixmap(pixmap_background)
+
+            # 前景图
+            painter = QPainter(pixmap_foreground)
+            painter.setPen(QPen(Qt.white, 2, Qt.SolidLine))
+            painter.drawRect(QRect(0, 0, self.side, self.side))
+            painter.end()
+
+            self.label_foreground.setPixmap(pixmap_foreground)
+            self.label_foreground.move(self.left_x, self.left_y + self.dst_y)
+
+            # 滑块
+            self.slider.setEnabled(True)
         except:
             traceback.print_exc()
 
     def move_slider(self, value):
-        x = int(value / self.slider.maximum() * (self.label.width() - 45)) + 10
-        y = self.label_puzzle.y()
-        self.label_puzzle.move(x, y)
+        """移动滑块"""
+        try:
+            x = self.left_x + int(value / self.slider.maximum() * (self.width - 45))
+            self.label_foreground.move(x, self.left_y + self.dst_y)
+        except:
+            traceback.print_exc()
 
+    def release_slider(self):
+        """释放滑块"""
+        try:
+            if -3 < self.label_foreground.x() - self.dst_x - 10 < 3:
+                self.pass_verify = True
+                self.slider.setStyleSheet("QSlider::handle:horizontal {image: url(./icons/right.png); background: #52CCBA;} ")
+            else:
+                self.pass_verify = False
+                self.slider.setStyleSheet("QSlider::handle:horizontal {image: url(./icons/wrong.png); background: #f57a7a;}")
+            print(f"pass {self.pass_verify}")
+        except:
+            traceback.print_exc()
 
 class LoadImageThread(QThread):
 
@@ -135,15 +187,13 @@ class LoadImageThread(QThread):
         super(LoadImageThread, self).__init__()
 
     def run(self):
-        width = random.randrange(300, 400, 2)
-        height = width // 2
-        url = f"http://placekitten.com/{width}/{height}"
+        url = "https://unsplash.it/400/200?random"
         logging.debug(f"captcha image url: {url}")
 
         try:
             image_data = requests.get(url).content
         except:
-            image_data = None
+            image_data = b''
         self.trigger.emit(image_data)
 
 
