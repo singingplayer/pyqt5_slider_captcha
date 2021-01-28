@@ -3,8 +3,8 @@ import traceback
 import random
 import time
 import logging
+import urllib.request
 
-import requests
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
@@ -75,11 +75,11 @@ QSlider::sub-page:horizontal {
 
             # 前景图
             self.side = 45
-            self.radius = 5
+            self.radius = 8
             self.label_foreground = QLabel(self)
-            self.label_foreground.setGeometry(self.left_x, self.left_y, self.side, self.side)
+            self.label_foreground.setGeometry(self.left_x, self.left_y, self.side + self.radius * 2, self.side + self.radius * 2)
             self.label_foreground.raise_()
-
+            
             # 拼图位置取值范围
             self.min_x = self.side + self.radius * 2
             self.max_x = self.width - self.side - (self.radius * 2)
@@ -90,7 +90,7 @@ QSlider::sub-page:horizontal {
             # 刷新按钮
             self.pushButton = QPushButton(self)
             self.pushButton.setGeometry(280, 20, 310, 30)
-            self.pushButton.clicked.connect(self.refresh_image)
+            self.pushButton.clicked.connect(self.refresh_captcha)
 
             # 滑块
             self.slider = QSlider(Qt.Horizontal, self)
@@ -106,19 +106,30 @@ QSlider::sub-page:horizontal {
         except:
             traceback.print_exc()
 
-    def refresh_image(self):
-        """刷新图片"""
+    def reset_slider(self):
+        """滑块重置"""
         try:
-            # 滑块重置
             self.slider.setValue(0)
-            self.slider.setEnabled(False)
             self.slider.setStyleSheet("QSlider::handle:horizontal {image: url(./icons/arrow.png); background: #ffffff;} QSlider::handle:hover {image: url(./icons/arrow-hover.png);background: #1991FA;}")
 
-            # 图片重置
+            self.label_foreground.move(self.left_x, self.left_y + self.dst_y - self.radius * 2)
+        except:
+            traceback.print_exc()
+
+    def reset_label(self):
+        """图片重置"""
+        try:
+            self.slider.setEnabled(False)
             self.label_background.clear()
             self.label_foreground.clear()
+        except:
+            traceback.print_exc()
 
-            # 图片加载线程开启
+    def refresh_captcha(self):
+        """刷新验证码"""
+        try:
+            self.reset_slider()
+            self.reset_label()
             self.thread.start()
         except:
             traceback.print_exc()
@@ -129,29 +140,44 @@ QSlider::sub-page:horizontal {
             self.dst_x = random.randint(self.min_x, self.max_x)
             self.dst_y = random.randint(self.min_y, self.max_y)
             logging.debug(f"dst_x:{self.dst_x}, dst_y:{self.dst_y}")
+
+            pixmap = QPixmap()
+            pixmap.loadFromData(content)
+            pixmap = pixmap.scaled(self.width, self.height)
+
             # 背景图
-            pixmap_background = QPixmap()
-            pixmap_background.loadFromData(content)
-            pixmap_background = pixmap_background.scaled(self.width, self.height)
-
-            pixmap_foreground = pixmap_background.copy(QRect(self.dst_x, self.dst_y, 45, 45))
-
+            pixmap_background = pixmap.copy()
             painter = QPainter(pixmap_background)
-            painter.setPen(QPen(Qt.white, 2, Qt.SolidLine))
+            painter.setPen(QPen(Qt.white, 1, Qt.SolidLine))
             painter.setBrush(QBrush(Qt.white, Qt.SolidPattern))
             painter.drawRect(QRect(self.dst_x, self.dst_y, self.side, self.side))
+            painter.drawEllipse(self.dst_x + self.side, self.dst_y + self.side//2 - self.radius, self.radius * 2, self.radius * 2)
+            painter.drawEllipse(self.dst_x + self.side // 2 - self.radius, self.dst_y - self.radius*2, self.radius * 2, self.radius * 2)
             painter.end()
 
             self.label_background.setPixmap(pixmap_background)
 
             # 前景图
+            pixmap_foreground = QPixmap(self.side + self.radius * 2, self.side + self.radius * 2)
+            pixmap_foreground.fill(Qt.transparent)
             painter = QPainter(pixmap_foreground)
+
+            path = QPainterPath()
+            path.addEllipse(self.side // 2 - self.radius, 0, self.radius * 2, self.radius * 2)
+            path.addEllipse(self.side, self.radius * 2 + self.side//2 - self.radius, self.radius * 2, self.radius * 2)
+            path.addRect(0, self.radius*2, self.side, self.side)
+            painter.setClipPath(path)
+            painter.drawPixmap(0, 0, self.side + self.radius * 2, self.side + self.radius * 2, pixmap)
+
             painter.setPen(QPen(Qt.white, 2, Qt.SolidLine))
-            painter.drawRect(QRect(0, 0, self.side, self.side))
+            painter.drawEllipse(self.side // 2 - self.radius, 0, self.radius * 2, self.radius * 2)
+            painter.drawEllipse(self.side, self.radius * 2 + self.side//2 - self.radius, self.radius * 2, self.radius * 2)
+            painter.drawRect(0, self.radius*2, self.side, self.side)
+
             painter.end()
 
             self.label_foreground.setPixmap(pixmap_foreground)
-            self.label_foreground.move(self.left_x, self.left_y + self.dst_y)
+            self.label_foreground.move(self.left_x, self.left_y + self.dst_y - self.radius * 2)
 
             # 滑块
             self.slider.setEnabled(True)
@@ -162,7 +188,8 @@ QSlider::sub-page:horizontal {
         """移动滑块"""
         try:
             x = self.left_x + int(value / self.slider.maximum() * (self.width - 45))
-            self.label_foreground.move(x, self.left_y + self.dst_y)
+
+            self.label_foreground.move(x, self.left_y + self.dst_y - self.radius * 2)
         except:
             traceback.print_exc()
 
@@ -172,9 +199,11 @@ QSlider::sub-page:horizontal {
             if -3 < self.label_foreground.x() - self.dst_x - 10 < 3:
                 self.pass_verify = True
                 self.slider.setStyleSheet("QSlider::handle:horizontal {image: url(./icons/right.png); background: #52CCBA;} ")
+                QTimer.singleShot(1000, self.refresh_captcha)
             else:
                 self.pass_verify = False
                 self.slider.setStyleSheet("QSlider::handle:horizontal {image: url(./icons/wrong.png); background: #f57a7a;}")
+                QTimer.singleShot(1000, self.reset_slider)
             print(f"pass {self.pass_verify}")
         except:
             traceback.print_exc()
@@ -191,7 +220,7 @@ class LoadImageThread(QThread):
         logging.debug(f"captcha image url: {url}")
 
         try:
-            image_data = requests.get(url).content
+            image_data = urllib.request.urlopen(url).read()
         except:
             image_data = b''
         self.trigger.emit(image_data)
