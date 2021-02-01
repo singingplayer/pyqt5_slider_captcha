@@ -80,7 +80,6 @@ QSlider::sub-page:horizontal {
             self.label_foreground = QLabel(self)
             self.label_foreground.setGeometry(self.left_x, self.left_y, self.side + self.radius * 2, self.side + self.radius * 2)
             self.label_foreground.raise_()
-            
             # 拼图位置取值范围
             self.min_x = self.side + self.radius * 2
             self.max_x = self.width - self.side - (self.radius * 2)
@@ -217,12 +216,13 @@ class LoadImageThread(QThread):
         super(LoadImageThread, self).__init__()
 
     def run(self):
-        url = "https://unsplash.it/400/200?random"
+        url = "https://api.reid.run/random.php"
         logging.debug(f"captcha image url: {url}")
 
         try:
             image_data = urllib.request.urlopen(url).read()
         except:
+            traceback.print_exc()
             image_data = b''
         self.trigger.emit(image_data)
 
