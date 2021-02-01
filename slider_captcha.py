@@ -9,6 +9,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 
+import icons_rc
 # 设置日志级别
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s')
 
@@ -24,12 +25,12 @@ QDialog {background: #ffffff;
 }
 
 QPushButton{
-    background-image: url(./icons/refresh.png);
+    background-image: url(:/icons/refresh.png);
     background-repeat: no-repeat;
     border: none;
 }
 QPushButton:hover{
-    background-image: url(./icons/refresh-hover.png);
+    background-image: url(:/icons/refresh-hover.png);
 }
 
 
@@ -38,7 +39,7 @@ QSlider::groove {
 }
 
 QSlider::handle:horizontal {
-    image: url(./icons/arrow.png);
+    image: url(:/icons/arrow.png);
     border:1px solid #999999;
     background: #ffffff;
     width: 45px;
@@ -46,7 +47,7 @@ QSlider::handle:horizontal {
 }
 
 QSlider::handle:hover {
-    image: url(./icons/arrow-hover.png);
+    image: url(:/icons/arrow-hover.png);
     border:1px solid #999999;
     background: #1991FA;
 }
@@ -110,7 +111,7 @@ QSlider::sub-page:horizontal {
         """滑块重置"""
         try:
             self.slider.setValue(0)
-            self.slider.setStyleSheet("QSlider::handle:horizontal {image: url(./icons/arrow.png); background: #ffffff;} QSlider::handle:hover {image: url(./icons/arrow-hover.png);background: #1991FA;}")
+            self.slider.setStyleSheet("QSlider::handle:horizontal {image: url(:/icons/arrow.png); background: #ffffff;} QSlider::handle:hover {image: url(:/icons/arrow-hover.png);background: #1991FA;}")
 
             self.label_foreground.move(self.left_x, self.left_y + self.dst_y - self.radius * 2)
         except:
@@ -198,11 +199,11 @@ QSlider::sub-page:horizontal {
         try:
             if -3 < self.label_foreground.x() - self.dst_x - 10 < 3:
                 self.pass_verify = True
-                self.slider.setStyleSheet("QSlider::handle:horizontal {image: url(./icons/right.png); background: #52CCBA;} ")
+                self.slider.setStyleSheet("QSlider::handle:horizontal {image: url(:/icons/right.png); background: #52CCBA;} ")
                 QTimer.singleShot(1000, self.refresh_captcha)
             else:
                 self.pass_verify = False
-                self.slider.setStyleSheet("QSlider::handle:horizontal {image: url(./icons/wrong.png); background: #f57a7a;}")
+                self.slider.setStyleSheet("QSlider::handle:horizontal {image: url(:/icons/wrong.png); background: #f57a7a;}")
                 QTimer.singleShot(1000, self.reset_slider)
             print(f"pass {self.pass_verify}")
         except:

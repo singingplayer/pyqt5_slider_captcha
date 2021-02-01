@@ -1,0 +1,11 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+  <qresource prefix="icons">
+    <file alias="arrow.png">icons/arrow.png</file>
+    <file alias="arrow-hover.png">icons/arrow-hover.png</file>
+    <file alias="refresh.png">icons/refresh.png</file>
+    <file alias="refresh-hover.png">icons/refresh-hover.png</file>
+    <file alias="right.png">icons/right.png</file>
+    <file alias="wrong.png">icons/wrong.png</file>
+  </qresource>
+</RCC>
