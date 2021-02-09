@@ -1,5 +1,5 @@
 # pyqt5_slider_captcha
-a slider captcha in cd pyqt5
+a slider captcha in pyqt5
 
 # how to run
 ```
